@@ -23,6 +23,14 @@ public class Target {
     boolean facingRight = true;
 
     Image slime = new ImageIcon(getClass().getResource("slime.png")).getImage();
+    
+    // Attack properties
+    boolean isAttacking = false;
+    int attackTimer = 0;
+    int attackCooldown = 0;
+    final int ATTACK_DURATION = 12;
+    final int ATTACK_COOLDOWN = 60; // frames between attacks
+    final int ATTACK_RANGE = 150;
 
     public void setSize(int size){
         this.size = size;
@@ -131,5 +139,9 @@ public class Target {
     public boolean isHit(int mx, int my){
         return mx >= x && mx <= x + size &&
                my >= y && my <= y + size;
+    }
+
+    public boolean isHitByRect(Rectangle rect) {
+        return rect.intersects(new Rectangle(x, y, size, size));
     }
 }
