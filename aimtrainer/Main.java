@@ -12,12 +12,12 @@ public class Main extends JFrame {
 
     public Main(){
 
-        setTitle("Aim Trainer");
+        setTitle("Slime Slayer");
         setSize(900,600);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        game = new GamePanel();
+        game = new GamePanel(this);
         MenuUI menu = new MenuUI(this);
 
         mainPanel.add(menu,"menu");
@@ -30,6 +30,10 @@ public class Main extends JFrame {
     public void startGame(Mode mode){
         game.setMode(mode);
         layout.show(mainPanel,"game");
+    }
+
+    public void backToMenu(){
+        layout.show(mainPanel,"menu");
     }
 
     public static void main(String[] args){

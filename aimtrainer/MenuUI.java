@@ -8,21 +8,23 @@ public class MenuUI extends JPanel {
     Main main;
 
     CardLayout layout = new CardLayout();
-    JPanel panel = new JPanel(layout);
+    BackgroundPanel panel = new BackgroundPanel("menuUI.png");
 
     public MenuUI(Main main){
 
         this.main = main;
 
+        // Set background for main MenuUI
+        setOpaque(true);
         setLayout(new BorderLayout());
+        panel.setLayout(layout);
 
         // ================= START MENU =================
-        JPanel startMenu = new JPanel();
-        startMenu.setBackground(Color.DARK_GRAY);
+        BackgroundPanel startMenu = new BackgroundPanel("menuUI.png");
         startMenu.setLayout(new GridLayout(3,1,20,20));
         startMenu.setBorder(BorderFactory.createEmptyBorder(100,100,100,100));
 
-        JLabel title = new JLabel("AIM TRAINER",SwingConstants.CENTER);
+        JLabel title = new JLabel("SLIME SLAYER",SwingConstants.CENTER);
         title.setFont(new Font("SansSerif",Font.BOLD,40));
         title.setForeground(Color.WHITE);
 
@@ -31,14 +33,21 @@ public class MenuUI extends JPanel {
 
         start.setFont(new Font("SansSerif",Font.BOLD,25));
         quit.setFont(new Font("SansSerif",Font.BOLD,25));
+        start.setForeground(Color.WHITE);
+        quit.setForeground(Color.WHITE);
+        start.setBackground(new Color(200, 100, 50));
+        quit.setBackground(new Color(200, 50, 50));
+        start.setFocusPainted(false);
+        quit.setFocusPainted(false);
+        start.setOpaque(true);
+        quit.setOpaque(true);
 
         startMenu.add(title);
         startMenu.add(start);
         startMenu.add(quit);
 
         // ================= MODE MENU =================
-        JPanel modeMenu = new JPanel();
-        modeMenu.setBackground(Color.DARK_GRAY);
+        BackgroundPanel modeMenu = new BackgroundPanel("background.jpg");
         modeMenu.setLayout(new GridLayout(5,1,20,20));
         modeMenu.setBorder(BorderFactory.createEmptyBorder(100,100,100,100));
 
@@ -55,6 +64,24 @@ public class MenuUI extends JPanel {
         normal.setFont(new Font("SansSerif",Font.BOLD,20));
         hard.setFont(new Font("SansSerif",Font.BOLD,20));
         back.setFont(new Font("SansSerif",Font.BOLD,20));
+        
+        // Style mode buttons
+        easy.setForeground(Color.WHITE);
+        normal.setForeground(Color.WHITE);
+        hard.setForeground(Color.WHITE);
+        back.setForeground(Color.WHITE);
+        easy.setBackground(new Color(50, 150, 50));
+        normal.setBackground(new Color(200, 150, 50));
+        hard.setBackground(new Color(200, 50, 50));
+        back.setBackground(new Color(100, 100, 100));
+        easy.setFocusPainted(false);
+        normal.setFocusPainted(false);
+        hard.setFocusPainted(false);
+        back.setFocusPainted(false);
+        easy.setOpaque(true);
+        normal.setOpaque(true);
+        hard.setOpaque(true);
+        back.setOpaque(true);
 
         modeMenu.add(select);
         modeMenu.add(easy);
