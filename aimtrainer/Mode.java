@@ -2,13 +2,13 @@ package aimtrainer;
 
 public enum Mode {
 
-    EASY(20),
-    NORMAL(30),
-    HARD(40);
+    EASY(10),
+    NORMAL(20),
+    HARD(30);
 
     public int targetCount;
 
-    Mode(int count){
-        this.targetCount = count;
+    Mode(int targetCount){
+        this.targetCount = targetCount;
     }
 }

@@ -18,27 +18,21 @@ public class Main extends JFrame {
         setLocationRelativeTo(null);
 
         game = new GamePanel();
-
         MenuUI menu = new MenuUI(this);
 
         mainPanel.add(menu,"menu");
         mainPanel.add(game,"game");
 
         add(mainPanel);
-
         setVisible(true);
     }
 
     public void startGame(Mode mode){
-
         game.setMode(mode);
         layout.show(mainPanel,"game");
-
     }
 
     public static void main(String[] args){
-
         new Main();
-
     }
 }

@@ -4,81 +4,77 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 
-public class GamePanel extends JPanel implements MouseMotionListener, MouseListener {
+public class GamePanel extends JPanel {
 
     Target target = new Target();
-    Gun gun = new Gun();
-    ScoreSystem score = new ScoreSystem();
 
-    int mouseX;
-    int mouseY;
+    int score = 0;
+    int shots = 0;
 
-    int targetSize = 60;
-    int spawnDelay = 1000;
+    Mode currentMode;
 
     public GamePanel(){
 
         setBackground(Color.DARK_GRAY);
- 
-        addMouseMotionListener(this);
-        addMouseListener(this);
-        target.spawnCenter(800,600);
 
-        Timer timer = new Timer(16,e -> repaint());
-        timer.start();
+        // Timer ให้ slime เคลื่อนที่
+        new Timer(16, e -> {
+            target.update(getWidth(), getHeight());
+            repaint();
+        }).start();
+
+        // ยิง
+        addMouseListener(new MouseAdapter(){
+            public void mousePressed(MouseEvent e){
+
+                shots++;
+
+                if(target.isHit(e.getX(), e.getY())){
+                    score++;
+                    target.spawn(getWidth(), getHeight());
+                }
+
+                repaint();
+            }
+        });
     }
+
     public void setMode(Mode mode){
+        this.currentMode = mode;
 
-    score.setMode(mode);
+        switch(mode){
+            case EASY:
+                target.setSize(100);
+                break;
+            case NORMAL:
+                target.setSize(70);
+                break;
+            case HARD:
+                target.setSize(50);
+                break;
+        }
 
-    if(mode == Mode.EASY){
-        targetSize = 80;
+        score = 0;
+        shots = 0;
+
+        target.spawn(800,600); // กันบัค width=0
     }
 
-    if(mode == Mode.NORMAL){
-        targetSize = 60;
-    }
-
-    if(mode == Mode.HARD){
-        targetSize = 40;
-    }
-
-    target.setSize(targetSize);
-    target.spawnCenter(800,600);
-}
-
-    
+    @Override
     protected void paintComponent(Graphics g){
-
         super.paintComponent(g);
 
         Graphics2D g2 = (Graphics2D) g;
 
         target.draw(g2);
 
-        gun.draw(g2,mouseX,mouseY,getWidth(),getHeight());
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 20));
 
-        score.draw(g2);
+        g2.drawString("Score: " + score, 20, 30);
+        g2.drawString("Shots: " + shots, 20, 60);
+
+        double acc = (shots == 0) ? 0 : (score * 100.0 / shots);
+        g2.drawString("Accuracy: " + String.format("%.1f", acc) + "%", 20, 90);
     }
-
-    public void mouseMoved(MouseEvent e){
-
-        mouseX = e.getX();
-        mouseY = e.getY();
-    }
-
-    public void mouseClicked(MouseEvent e){
-            score.addShot();
-        if(target.isHit(e.getX(),e.getY())){
-
-            score.addHit();
-            target.spawn(getWidth(),getHeight());
-        }
-    }
-
-    public void mouseDragged(MouseEvent e){}
-    public void mousePressed(MouseEvent e){}
-    public void mouseReleased(MouseEvent e){}
-    public void mouseEntered(MouseEvent e){}
-    public void mouseExited(MouseEvent e){}
 }
