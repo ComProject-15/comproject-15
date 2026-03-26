@@ -17,6 +17,10 @@ public class Player {
     boolean attacking = false;
     int attackTimer = 0;
     final int ATTACK_DURATION = 10;
+
+    int attackCooldown = 0;
+    final int ATTACK_COOLDOWN = 30;
+
     boolean facingRight = true;
 
     Image sprite;
@@ -25,6 +29,11 @@ public class Player {
     int health = 100;
     int maxHealth = 100;
     int attackDamage = 10;
+
+    // ===== Invincibility frames หลังโดนตี =====
+    int invincibleTimer = 0;
+    final int INVINCIBLE_DURATION = 60; // 60 frame = ~1 วิ — ปรับได้
+    // ============================================
 
     public Player(int x, int y){
         this.x = x;
@@ -44,7 +53,13 @@ public class Player {
     public void jump(){ if(onGround){ velocityY = JUMP_POWER; onGround = false; } }
 
     // ============ ATTACK ============
-    public void attack(){ if(!attacking){ attacking = true; attackTimer = ATTACK_DURATION; } }
+    public void attack(){
+        if(!attacking && attackCooldown <= 0){
+            attacking = true;
+            attackTimer = ATTACK_DURATION;
+            attackCooldown = ATTACK_COOLDOWN;
+        }
+    }
 
     public Rectangle getAttackHitbox(){
         if(!attacking) return null;
@@ -82,10 +97,24 @@ public class Player {
         if(x + width > panelWidth) x = panelWidth - width;
 
         if(attacking){ attackTimer--; if(attackTimer <= 0) attacking = false; }
+
+        if(attackCooldown > 0) attackCooldown--;
+
+        // ===== ลด invincible timer ทุก frame =====
+        if(invincibleTimer > 0) invincibleTimer--;
+        // ==========================================
     }
 
     // ============ DRAW ============
     public void draw(Graphics2D g){
+        // ===== กระพริบเมื่อ invincible =====
+        if(invincibleTimer > 0 && (invincibleTimer / 5) % 2 == 0){
+            drawHealthBar(g);
+            drawAttackEffect(g);
+            return;
+        }
+        // =====================================
+
         if(sprite == null){
             g.setColor(Color.BLUE);
             g.fillRect(x, y, width, height);
@@ -112,11 +141,19 @@ public class Player {
         g.drawRect(barX, barY, barWidth, barHeight);
     }
 
+    // ===== takeDamage เช็ค invincible ก่อนหักเลือด =====
     public int takeDamage(int damage){
+        if(invincibleTimer > 0) return 0; // กำลัง invincible — ไม่รับดาเมจ
+
         health -= damage;
         if(health < 0) health = 0;
+
+        invincibleTimer = INVINCIBLE_DURATION; // เริ่ม invincible หลังโดนตี
         return damage;
     }
+    // =====================================================
+
+    public boolean isInvincible(){ return invincibleTimer > 0; }
 
     public int getHealth(){ return health; }
     public int getMaxHealth(){ return maxHealth; }
