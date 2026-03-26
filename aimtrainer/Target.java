@@ -1,8 +1,8 @@
 package aimtrainer;
 
 import java.awt.*;
-import javax.swing.*;
 import java.util.Random;
+import javax.swing.*;
 
 public class Target {
 

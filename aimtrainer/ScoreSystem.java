@@ -1,5 +1,4 @@
 package aimtrainer;
-
 import java.awt.*;
 
 public class ScoreSystem {

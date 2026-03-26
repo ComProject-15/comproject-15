@@ -26,11 +26,11 @@ public class Main extends JFrame {
 
         add(mainPanel);
         setVisible(true);
-
-        // เริ่มเล่นเพลง background
+        
         SoundManager.playMusic();
+        
+        
     }
-
     public void startGame(Mode mode) {
         game.setMode(mode);
         layout.show(mainPanel, "game");

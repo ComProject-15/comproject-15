@@ -1,9 +1,9 @@
 package aimtrainer;
 
-import javax.swing.*;
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.io.IOException;
+import javax.imageio.ImageIO;
+import javax.swing.*;
 
 public class BackgroundPanel extends JPanel {
     

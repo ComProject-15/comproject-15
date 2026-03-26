@@ -1,42 +1,35 @@
+package aimtrainer;
+
 import java.net.URL;
 import javax.sound.sampled.*;
 
 public class SoundManager {
 
+    private static Clip musicClip; // เก็บไว้ไม่ให้ถูก garbage
+
     public static void playMusic() {
         try {
-            URL url = SoundManager.class.getResource("/music.wav");
+            // ไฟล์ต้องอยู่ในโฟลเดอร์ aimtrainer (เดียวกับ Main + GamePanel)
+            URL url = SoundManager.class.getResource("/aimtrainer/music.wav");
             if (url == null) {
                 System.out.println("ไม่พบไฟล์ music.wav");
                 return;
             }
 
             AudioInputStream audio = AudioSystem.getAudioInputStream(url);
-            Clip clip = AudioSystem.getClip();
-            clip.open(audio);
-            clip.loop(Clip.LOOP_CONTINUOUSLY);
-            clip.start();
+            musicClip = AudioSystem.getClip();
+            musicClip.open(audio);
+            musicClip.loop(Clip.LOOP_CONTINUOUSLY); // เล่นวนซ้ำ
+            musicClip.start();
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static void playSound(String soundFile) {
-        try {
-            URL url = SoundManager.class.getResource("/" + soundFile);
-            if (url == null) {
-                System.out.println("ไม่พบไฟล์ " + soundFile);
-                return;
-            }
-
-            AudioInputStream audio = AudioSystem.getAudioInputStream(url);
-            Clip clip = AudioSystem.getClip();
-            clip.open(audio);
-            clip.start();
-
-        } catch (Exception e) {
-            e.printStackTrace();
+    public static void stopMusic() {
+        if (musicClip != null && musicClip.isRunning()) {
+            musicClip.stop();
         }
     }
 }
