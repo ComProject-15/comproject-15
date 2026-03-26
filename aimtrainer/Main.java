@@ -33,7 +33,12 @@ public class Main extends JFrame {
     }
     public void startGame(Mode mode) {
         game.setMode(mode);
+
         layout.show(mainPanel, "game");
+
+        layout.show(mainPanel,"game");
+        game.requestFocusInWindow(); // <-- แก้ตรงนี้: ดึง focus มาที่ GamePanel หลัง show
+
     }
 
     public void backToMenu() {
