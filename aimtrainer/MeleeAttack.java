@@ -4,17 +4,21 @@ import java.awt.*;
 
 public class MeleeAttack {
     int x, y, width, height;
-    int duration = 10; // จำนวน frame ที่ hitbox อยู่
+    int duration = 10;
     boolean active = true;
+
+    // ✅ กันเสียงซ้ำ
+    boolean hasHit = false;
 
     public MeleeAttack(int playerX, int playerY, boolean facingRight) {
         width = 30;
         height = 20;
-        y = playerY - 40; // ปรับให้สูงตรงกับตัวละคร
+        y = playerY - 40;
+
         if (facingRight) {
-            x = playerX + 40; // ข้างขวาตัวละคร
+            x = playerX + 40;
         } else {
-            x = playerX - width; // ข้างซ้ายตัวละคร
+            x = playerX - width;
         }
     }
 
@@ -30,6 +34,19 @@ public class MeleeAttack {
 
     public boolean hits(Target target) {
         Rectangle attackRect = new Rectangle(x, y, width, height);
-       return target.isHitByRect(attackRect);
+
+        // ✅ เช็คโดน
+        if (target.isHitByRect(attackRect)) {
+
+            // 🔊 เล่นเสียงครั้งเดียว
+            if (!hasHit) {
+                SoundManager.playSound("hit.wav"); // 🔫 เสียงตีโดน
+                hasHit = true;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }

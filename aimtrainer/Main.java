@@ -10,38 +10,38 @@ public class Main extends JFrame {
     GamePanel game;
 
     public Main() {
-        // ตั้งค่า JFrame
         setTitle("Slime Slayer");
         setSize(900, 600);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // สร้าง panel เกมและเมนู
         game = new GamePanel(this);
         MenuUI menu = new MenuUI(this);
 
-        // ใส่ panel ลง mainPanel
         mainPanel.add(menu, "menu");
         mainPanel.add(game, "game");
 
         add(mainPanel);
         setVisible(true);
-        
+
+        // 🎵 เล่นเพลงพื้นหลัง
         SoundManager.playMusic();
-        
-        
     }
+
+    // 🎮 เริ่มเกม (มีเสียง click)
     public void startGame(Mode mode) {
+        SoundManager.playSound("click.wav"); // 🔊 เสียงกดปุ่ม
+
         game.setMode(mode);
 
         layout.show(mainPanel, "game");
-
-        layout.show(mainPanel,"game");
-        game.requestFocusInWindow(); // <-- แก้ตรงนี้: ดึง focus มาที่ GamePanel หลัง show
-
+        game.requestFocusInWindow();
     }
 
+    // 🔙 กลับเมนู (มีเสียง click)
     public void backToMenu() {
+        SoundManager.playSound("click.wav"); // 🔊 เสียงกดปุ่ม
+
         layout.show(mainPanel, "menu");
     }
 

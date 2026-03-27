@@ -1,12 +1,12 @@
 package aimtrainer;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import javax.imageio.ImageIO;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
+import javax.swing.*;
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
     List<Target> targets = new ArrayList<>();
@@ -29,6 +29,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     boolean leftPressed = false, rightPressed = false, upPressed = false;
     boolean wasAttacking = false;
 
+    boolean playedEndSound = false;
+
+    // 🔥 ตัวกัน win ตอนยังไม่เริ่มเกม
+    boolean gameStarted = false;
+
     public GamePanel(Main main) {
         this.main = main;
         player = new Player(100, 300);
@@ -44,7 +49,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         new Timer(16, e -> {
             if (!stageClear) {
-                // อัปเดต targets (ทั้งที่ยังมีชีวิตและกำลัง dying)
+
                 for (Target target : targets) {
                     target.update(getWidth(), getHeight(), player);
                 }
@@ -54,30 +59,35 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 if (upPressed)    { player.jump(); upPressed = false; }
                 player.update(getWidth(), getHeight());
 
-                // Reset hitThisSwing เมื่อเริ่ม swing ใหม่
                 boolean isAttackingNow = player.attacking;
                 if (isAttackingNow && !wasAttacking) {
                     for (Target t : targets) t.resetHitThisSwing();
                 }
                 wasAttacking = isAttackingNow;
 
-                // Sword hits target
                 Rectangle swordHitbox = player.getAttackHitbox();
                 if (swordHitbox != null) {
                     for (int i = targets.size() - 1; i >= 0; i--) {
                         Target target = targets.get(i);
-                        if (target.isDying) continue; // กำลัง dying — ข้าม
+                        if (target.isDying) continue;
+
                         if (target.isHitByRect(swordHitbox)) {
                             int dmg = target.takeDamageOnce();
+
                             if (dmg > 0) {
+
+                                // 🔊 เสียงตีโดนจริง
+                                SoundManager.playSound("hit.wav");
+
                                 floatingDamages.add(new FloatingDamage(
                                     target.x + target.size / 2.0,
                                     target.y - 20,
                                     dmg
                                 ));
+
                                 if (target.isDead()) {
                                     score++;
-                                    target.startDeathEffect(); // เริ่ม death animation
+                                    target.startDeathEffect();
                                 }
                             }
                             break;
@@ -85,24 +95,30 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                     }
                 }
 
-                // ลบ target ที่ death effect จบแล้ว
                 targets.removeIf(Target::deathEffectDone);
 
-                // Update floating damage
                 for (int i = floatingDamages.size() - 1; i >= 0; i--) {
                     FloatingDamage fd = floatingDamages.get(i);
                     fd.update();
                     if (!fd.isAlive()) floatingDamages.remove(i);
                 }
 
-                if (player.getHealth() <= 0) {
+                // 😵 แพ้
+                if (player.getHealth() <= 0 && !playedEndSound) {
+                    SoundManager.playSound("lose.wav");
+                    playedEndSound = true;
+
                     stageClear = true;
                     stageClareTimer = STAGE_CLEAR_DELAY;
                 }
 
-                // Stage clear: targets ว่าง (รวมถึงพวกที่กำลัง dying ด้วย)
                 boolean allGone = targets.stream().allMatch(t -> t.isDying);
-                if ((targets.isEmpty() || allGone) && player.getHealth() > 0 && !stageClear) {
+
+                // 🏆 ชนะ (ต้อง gameStarted ก่อน)
+                if (gameStarted && (targets.isEmpty() || allGone) && player.getHealth() > 0 && !stageClear && !playedEndSound) {
+                    SoundManager.playSound("win.wav");
+                    playedEndSound = true;
+
                     stageClear = true;
                     stageClareTimer = STAGE_CLEAR_DELAY;
                 }
@@ -123,6 +139,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             public void mousePressed(MouseEvent e) {
                 if (e.getX() >= backButtonX && e.getX() <= backButtonX + backButtonWidth &&
                     e.getY() >= backButtonY && e.getY() <= backButtonY + backButtonHeight) {
+
+                    SoundManager.playSound("click.wav");
+
                     main.backToMenu();
                 }
             }
@@ -137,7 +156,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             case KeyEvent.VK_A: leftPressed = true; break;
             case KeyEvent.VK_D: rightPressed = true; break;
             case KeyEvent.VK_W: upPressed = true; break;
-            case KeyEvent.VK_SPACE: player.attack(); shots++; break;
+
+            case KeyEvent.VK_SPACE:
+                player.attack();
+                shots++;
+                break;
         }
     }
 
@@ -154,11 +177,16 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     public void setMode(Mode mode) {
         this.currentMode = mode;
+
+        // ✅ เริ่มเกมจริง
+        gameStarted = true;
+
         targets.clear();
         stageClear = false;
         stageClareTimer = 0;
         player.health = player.maxHealth;
         wasAttacking = false;
+        playedEndSound = false;
 
         int numTargets, targetSize;
         switch (mode) {
@@ -186,54 +214,20 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        if (backgroundImage != null) g2.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), null);
-        else { g2.setColor(Color.DARK_GRAY); g2.fillRect(0, 0, getWidth(), getHeight()); }
+        if (backgroundImage != null)
+            g2.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), null);
+        else {
+            g2.setColor(Color.DARK_GRAY);
+            g2.fillRect(0, 0, getWidth(), getHeight());
+        }
 
         for (Target target : targets) target.draw(g2);
         player.draw(g2);
         for (FloatingDamage fd : floatingDamages) fd.draw(g2);
 
-        // Back button
-        g2.setColor(new Color(100, 100, 100, 200));
-        g2.fillRect(backButtonX, backButtonY, backButtonWidth, backButtonHeight);
-        g2.setColor(Color.WHITE); g2.setStroke(new BasicStroke(2));
-        g2.drawRect(backButtonX, backButtonY, backButtonWidth, backButtonHeight);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 14));
-        g2.drawString("Back to Menu", backButtonX + 10, backButtonY + 27);
-
-        g2.setColor(Color.WHITE); g2.setFont(new Font("SansSerif", Font.BOLD, 14));
-        String diff = currentMode == Mode.EASY ? "EASY" : currentMode == Mode.NORMAL ? "NORMAL" : "HARD";
-        g2.drawString("Difficulty: " + diff, getWidth() - 180, 35);
-
-        if (!targets.isEmpty()) {
-            Target first = targets.get(0);
-            if (!first.isDying)
-                g2.drawString("Enemies: " + targets.size() + " | HP: " + first.getHealth() + "/" + first.getMaxHealth(),
-                    getWidth() - 280, 60);
-        }
-
-        g2.setFont(new Font("SansSerif", Font.BOLD, 20));
+        g2.setColor(Color.WHITE);
         g2.drawString("Score: " + score, 20, 70);
-        g2.drawString("Shots: " + shots, 20, 100);
-        double acc = (shots == 0) ? 0 : (score * 100.0 / shots);
-        g2.drawString("Accuracy: " + String.format("%.1f", acc) + "%", 20, 130);
-
-        if (stageClear) {
-            g2.setColor(new Color(0, 0, 0, 200));
-            g2.fillRect(0, 0, getWidth(), getHeight());
-            boolean dead = player.getHealth() <= 0;
-            g2.setColor(dead ? Color.RED : Color.YELLOW);
-            g2.setFont(new Font("SansSerif", Font.BOLD, 80));
-            FontMetrics fm = g2.getFontMetrics();
-            String txt = dead ? "GAME OVER" : "STAGE CLEARED!";
-            g2.drawString(txt, (getWidth() - fm.stringWidth(txt)) / 2, getHeight() / 2 - 40);
-            g2.setColor(Color.WHITE); g2.setFont(new Font("SansSerif", Font.PLAIN, 20));
-            String ret = "Returning to menu...";
-            fm = g2.getFontMetrics();
-            g2.drawString(ret, (getWidth() - fm.stringWidth(ret)) / 2, getHeight() / 2 + 20);
-        }
     }
 
     @Override public void run() {}

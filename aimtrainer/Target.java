@@ -82,6 +82,7 @@ public class Target {
     // เรียกเพื่อเริ่ม death animation (จาก GamePanel ก่อน remove)
     public void startDeathEffect() {
         if (isDying) return;
+        SoundManager.playSound("death.wav");
         isDying = true;
         deathTimer = DEATH_DURATION;
         // spawn particles
