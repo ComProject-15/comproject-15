@@ -1,6 +1,7 @@
 package aimtrainer;
 
 import java.awt.*;
+import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 
@@ -32,6 +33,8 @@ public class Player {
     int invincibleTimer = 0;
     final int INVINCIBLE_DURATION = 60;
 
+    float swordAngle = 0f;
+
     public Player(int x, int y) {
         this.x = x;
         this.y = y;
@@ -60,13 +63,11 @@ public class Player {
         }
     }
 
-    // 🔥 HITBOX ใหม่ (ใช้เอง ไม่ง้อ Sword)
     public Rectangle getAttackHitbox() {
         if (!attacking) return null;
 
         int attackWidth = 60;
         int attackHeight = 40;
-
         int hitboxY = y + height / 2 - attackHeight / 2;
 
         if (facingRight) {
@@ -96,34 +97,67 @@ public class Player {
         }
 
         if (attackCooldown > 0) attackCooldown--;
-
         if (invincibleTimer > 0) invincibleTimer--;
+
+        // อัพเดทมุมดาบ
+        if (attacking) {
+            float progress = 1f - (attackTimer / (float) ATTACK_DURATION);
+            swordAngle = facingRight
+                ? -60 + progress * 120
+                : 60 - progress * 120;
+        } else {
+            swordAngle = facingRight ? -30 : 30;
+        }
     }
 
     public void draw(Graphics2D g) {
+        boolean visible = !(invincibleTimer > 0 && (invincibleTimer / 5) % 2 == 0);
 
-        // กระพริบตอนโดนตี
-        if (invincibleTimer > 0 && (invincibleTimer / 5) % 2 == 0) {
-            drawHealthBar(g);
-            return;
+        if (visible) {
+            if (sprite == null) {
+                g.setColor(Color.BLUE);
+                g.fillRect(x, y, width, height);
+            } else {
+                if (facingRight)
+                    g.drawImage(sprite, x, y, width, height, null);
+                else
+                    g.drawImage(sprite, x + width, y, -width, height, null);
+            }
         }
 
-        if (sprite == null) {
-            g.setColor(Color.BLUE);
-            g.fillRect(x, y, width, height);
+        // วาดดาบแกว่งได้
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        int pivotX = facingRight ? x + width - 20 : x + 20;
+        int pivotY = y + height / 2 + 5;
+
+        AffineTransform old = g.getTransform();
+        g.rotate(Math.toRadians(swordAngle), pivotX, pivotY);
+
+        // ด้ามจับ
+        g.setColor(new Color(120, 80, 40));
+        g.fillRect(pivotX - 6, pivotY - 8, 12, 16);
+
+        // ใบดาบ
+        g.setColor(new Color(200, 200, 230));
+        if (facingRight)
+            g.fillRect(pivotX, pivotY - 4, 40, 8);
+        else
+            g.fillRect(pivotX - 40, pivotY - 4, 40, 8);
+
+        // ปลายดาบ
+        g.setColor(new Color(220, 220, 255));
+        int[] tipX, tipY;
+        if (facingRight) {
+            tipX = new int[]{pivotX + 40, pivotX + 55, pivotX + 40};
+            tipY = new int[]{pivotY - 5, pivotY, pivotY + 5};
         } else {
-            if (facingRight)
-                g.drawImage(sprite, x, y, width, height, null);
-            else
-                g.drawImage(sprite, x + width, y, -width, height, null);
+            tipX = new int[]{pivotX - 40, pivotX - 55, pivotX - 40};
+            tipY = new int[]{pivotY - 5, pivotY, pivotY + 5};
         }
+        g.fillPolygon(tipX, tipY, 3);
 
-        // 🔥 วาด hitbox ตอนตี (debug มองเห็นเลย)
-        Rectangle hitbox = getAttackHitbox();
-        if (hitbox != null) {
-            g.setColor(new Color(255, 0, 0, 120));
-            g.fillRect(hitbox.x, hitbox.y, hitbox.width, hitbox.height);
-        }
+        g.setTransform(old);
 
         drawHealthBar(g);
     }
