@@ -67,7 +67,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 .createCustomCursor(cursorImg, new Point(0, 0), "blank");
         setCursor(blankCursor);
 
-        // โหลด background ใช้รูปเดิมทุก wave
         try {
             Image bg = ImageIO.read(getClass().getResource("background.jpg"));
             backgrounds[0] = bg;
@@ -83,11 +82,19 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 mouseY = e.getY();
                 hoverPlay = playAgainBtn.contains(e.getPoint());
                 hoverMenu = menuBtn.contains(e.getPoint());
+                player.levelSys.handleMouseMove(e.getX(), e.getY());
             }
         });
 
         addMouseListener(new MouseAdapter() {
             public void mousePressed(MouseEvent e) {
+                // Upgrade menu รับก่อน
+                if (player.levelSys.showUpgradeMenu) {
+                    player.levelSys.handleMouseClick(e.getX(), e.getY(),
+                            player, player.skills);
+                    return;
+                }
+
                 if (stageClear && (endState.equals("WIN") || endState.equals("LOSE"))) {
                     if (playAgainBtn.contains(e.getPoint())) {
                         SoundManager.playSound("click.wav");
@@ -120,6 +127,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 if (transitionAlpha < 0) transitionAlpha = 0;
             }
 
+            // หยุด game loop ขณะ upgrade menu เปิดอยู่
+            if (player.levelSys.showUpgradeMenu) {
+                repaint();
+                return;
+            }
+
             if (!stageClear) {
 
                 for (Target target : targets) {
@@ -137,25 +150,55 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 }
                 wasAttacking = isAttackingNow;
 
+                // ── Normal Attack ──────────────────────────────────────────────
                 Rectangle swordHitbox = player.getAttackHitbox();
                 if (swordHitbox != null) {
+                    checkHitTargets(swordHitbox, player.attackDamage, false);
+                }
+
+                // ── Power Strike ───────────────────────────────────────────────
+                Rectangle powerHitbox = player.skills.getPowerHitbox(player);
+                if (powerHitbox != null) {
+                    // Power Strike ดาเมจ 3× + knockback
+                    int powerDmg = player.attackDamage * 3;
                     for (int i = targets.size() - 1; i >= 0; i--) {
-                        Target target = targets.get(i);
-                        if (target.isDying) continue;
-                        if (target.isHitByRect(swordHitbox)) {
-                            int dmg = target.takeDamageOnce();
+                        Target t = targets.get(i);
+                        if (t.isDying) continue;
+                        if (t.isHitByRect(powerHitbox)) {
+                            int dmg = t.takeDamageOnce(powerDmg);
                             if (dmg > 0) {
                                 SoundManager.playSound("hit.wav");
                                 floatingDamages.add(new FloatingDamage(
-                                        target.x + target.size / 2.0,
-                                        target.y - 20, dmg));
-                                if (target.isDead()) {
-                                    score++;
-                                    totalSlimesKilled++;
-                                    target.startDeathEffect();
+                                        t.x + t.size / 2.0, t.y - 30, dmg));
+                                // knockback
+                                t.x += player.facingRight ? 60 : -60;
+                                if (t.isDead()) {
+                                    onSlimeKilled();
+                                    t.startDeathEffect();
                                 }
                             }
-                            break;
+                        }
+                    }
+                }
+
+                // ── Whirlwind ──────────────────────────────────────────────────
+                Rectangle whirlHitbox = player.skills.getWhirlHitbox(player);
+                if (whirlHitbox != null) {
+                    int whirlDmg = (int)(player.attackDamage * 1.5);
+                    for (int i = targets.size() - 1; i >= 0; i--) {
+                        Target t = targets.get(i);
+                        if (t.isDying) continue;
+                        if (t.isHitByRect(whirlHitbox)) {
+                            int dmg = t.takeDamageOnce(whirlDmg);
+                            if (dmg > 0) {
+                                SoundManager.playSound("hit.wav");
+                                floatingDamages.add(new FloatingDamage(
+                                        t.x + t.size / 2.0, t.y - 30, dmg));
+                                if (t.isDead()) {
+                                    onSlimeKilled();
+                                    t.startDeathEffect();
+                                }
+                            }
                         }
                     }
                 }
@@ -184,7 +227,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 boolean allGone = targets.isEmpty() ||
                         targets.stream().allMatch(t -> t.isDying);
 
-                // ชนะ wave — spawn หีบ
                 if (gameStarted && allGone && player.getHealth() > 0
                         && !stageClear && !playedEndSound) {
 
@@ -195,12 +237,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                         chest.activate();
                     }
 
-                    // โชว์ portal หลังเก็บของแล้ว
                     if (chest != null && chest.collected) {
                         showPortal = true;
                     }
 
-                    // wave สุดท้าย
                     if (wave >= 3 && chest != null && chest.collected && !playedEndSound) {
                         SoundManager.playSound("win.wav");
                         playedEndSound = true;
@@ -211,7 +251,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                                 currentMode.name(), totalSlimesKilled, clearTime));
                     }
 
-                    // เดินเข้า portal
                     if (showPortal && wave < 3
                             && player.x + player.width >= portalRect.x && !transitioning) {
                         transitioning = true;
@@ -223,6 +262,35 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
             repaint();
         }).start();
+    }
+
+    // ── ตรวจชนและหัก HP ──────────────────────────────────────────────────────
+    private void checkHitTargets(Rectangle hitbox, int damage, boolean multiHit) {
+        for (int i = targets.size() - 1; i >= 0; i--) {
+            Target target = targets.get(i);
+            if (target.isDying) continue;
+            if (target.isHitByRect(hitbox)) {
+                int dmg = target.takeDamageOnce(damage);
+                if (dmg > 0) {
+                    SoundManager.playSound("hit.wav");
+                    floatingDamages.add(new FloatingDamage(
+                            target.x + target.size / 2.0, target.y - 20, dmg));
+                    if (target.isDead()) {
+                        onSlimeKilled();
+                        target.startDeathEffect();
+                    }
+                }
+                if (!multiHit) break;
+            }
+        }
+    }
+
+    /** เรียกทุกครั้งที่ slime ตาย */
+    private void onSlimeKilled() {
+        score++;
+        totalSlimesKilled++;
+        int expGain = 30 + wave * 10; // EXP มากขึ้นตาม wave
+        player.levelSys.gainExp(expGain);
     }
 
     private void nextWave() {
@@ -263,42 +331,48 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     @Override
     public void keyPressed(KeyEvent e) {
         if (stageClear) return;
+        if (player.levelSys.showUpgradeMenu) return; // หยุดรับ input เกมขณะเลือก upgrade
 
         switch (e.getKeyCode()) {
             case KeyEvent.VK_A: leftPressed = true; break;
             case KeyEvent.VK_D: rightPressed = true; break;
             case KeyEvent.VK_W: upPressed = true; break;
+
             case KeyEvent.VK_SPACE:
                 player.attack();
                 shots++;
+                break;
+
+            // ── Skills ─────────────────────────────────────────────────────
+            case KeyEvent.VK_Q:
+                player.skills.tryDash(player);
+                break;
+
+            case KeyEvent.VK_F:
+                player.skills.tryPowerStrike(player);
+                break;
+
+            case KeyEvent.VK_R:
+                // Whirlwind (Lv ≥ 3) — ถ้าไม่ unlock ลองเปิดหีบแทน
+                if (player.levelSys.level >= 3) {
+                    player.skills.tryWhirlwind(player.levelSys.level);
+                } else if (chest != null && chest.opened && !chest.collected
+                        && chest.isNearPlayer(player)) {
+                    chest.collect();
+                    SoundManager.playSound("click.wav");
+                    switch (chest.itemType) {
+                        case SHIELD:       player.shield.activate();       break;
+                        case HEAL:         player.heal(50);                 break;
+                        case ATTACK_BUFF:  player.activateAttackBuff();    break;
+                        case GOLD:         score += 500;                    break;
+                    }
+                }
                 break;
 
             case KeyEvent.VK_E:
                 if (chest != null && !chest.opened && chest.isNearPlayer(player)) {
                     chest.open();
                     SoundManager.playSound("click.wav");
-                }
-                break;
-
-            case KeyEvent.VK_R:
-                if (chest != null && chest.opened && !chest.collected
-                        && chest.isNearPlayer(player)) {
-                    chest.collect();
-                    SoundManager.playSound("click.wav");
-                    switch (chest.itemType) {
-                        case SHIELD:
-                            player.shield.activate();
-                            break;
-                        case HEAL:
-                            player.heal(50);
-                            break;
-                        case ATTACK_BUFF:
-                            player.activateAttackBuff();
-                            break;
-                        case GOLD:
-                            score += 500;
-                            break;
-                    }
                 }
                 break;
         }
@@ -336,6 +410,15 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         chestSpawned = false;
         chest = null;
         startTime = System.currentTimeMillis();
+
+        // รีเซ็ต Level & Skill System
+        player.levelSys = new LevelSystem();
+        player.skills   = new SkillSystem();
+        player.baseAttackDamage = 12;
+        player.attackDamage     = 12;
+        player.maxHealth = 150;
+        player.health    = 150;
+        player.speed     = 5;
 
         int numTargets, targetSize;
         switch (mode) {
@@ -375,6 +458,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         for (Target target : targets) target.draw(g2);
         if (chest != null) chest.draw(g2);
+
+        // Whirlwind visual
+        player.skills.drawWhirlEffect(g2, player, animTick);
+
         player.draw(g2);
         for (FloatingDamage fd : floatingDamages) fd.draw(g2);
 
@@ -382,9 +469,15 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         drawHUD(g2);
 
+        // Skill Bar
+        player.skills.drawSkillBar(g2, getWidth(), getHeight(), player.levelSys.level);
+
         if (stageClear && (endState.equals("WIN") || endState.equals("LOSE"))) {
             drawEndScreen(g2);
         }
+
+        // Upgrade menu วาดทับทุกอย่าง
+        player.levelSys.drawUpgradeMenu(g2, getWidth(), getHeight(), animTick);
 
         if (transitionAlpha > 0) {
             g2.setColor(new Color(0, 0, 0, Math.min(transitionAlpha, 255)));
@@ -408,7 +501,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     private void drawHUD(Graphics2D g2) {
         g2.setColor(new Color(0, 0, 0, 120));
-        g2.fillRoundRect(10, 10, 200, 85, 12, 12);
+        g2.fillRoundRect(10, 10, 220, 115, 12, 12);
 
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.BOLD, 18));
@@ -420,14 +513,23 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             g2.drawString("Time:  " + elapsed + "s", 20, 81);
         }
 
+        // Level + EXP ใน HUD
+        player.levelSys.drawHUDLevel(g2, 20, 103);
+
+        // Skill hints
         if (showPortal && wave < 3) {
             g2.setColor(new Color(255, 255, 100, 220));
             g2.setFont(new Font("Arial", Font.BOLD, 16));
             String hint = "► Walk right into the Portal!";
             FontMetrics fm = g2.getFontMetrics();
             g2.drawString(hint, getWidth() / 2 - fm.stringWidth(hint) / 2,
-                    getHeight() - 25);
+                    getHeight() - 90);
         }
+
+        // controls hint ซ้ายล่าง
+        g2.setColor(new Color(200, 200, 200, 160));
+        g2.setFont(new Font("Arial", Font.PLAIN, 11));
+        g2.drawString("SPACE=Attack  Q=Dash  F=PowerStrike  R=Whirl(Lv3)  E=Open chest", 10, getHeight() - 80);
     }
 
     private void drawPortal(Graphics2D g2) {
@@ -475,7 +577,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 ? new Color(0, 255, 150) : new Color(255, 80, 80));
         g2.drawString(text, getWidth() / 2 - 170, 160 + bounce);
 
-        // กล่องสถิติ
         int boxX = getWidth() / 2 - 220;
         int boxY = 185;
         int boxW = 440;
@@ -488,7 +589,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         g2.drawRoundRect(boxX, boxY, boxW, boxH, 16, 16);
         g2.setStroke(new BasicStroke(1));
 
-        // สถิติรอบนี้
         g2.setFont(new Font("Arial", Font.BOLD, 17));
         g2.setColor(new Color(180, 220, 255));
         g2.drawString("── This Run ──", boxX + 155, boxY + 28);
@@ -499,12 +599,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         g2.drawString("Slimes:  " + totalSlimesKilled + " killed", boxX + 20, boxY + 78);
         g2.drawString("Score:   " + score, boxX + 20, boxY + 101);
         g2.drawString("Mode:    " + currentMode.name(), boxX + 20, boxY + 124);
+        g2.drawString("Level:   " + player.levelSys.level, boxX + 240, boxY + 55);
 
-        // เส้นแบ่ง
         g2.setColor(new Color(100, 100, 150));
         g2.drawLine(boxX + 15, boxY + 135, boxX + boxW - 15, boxY + 135);
 
-        // ประวัติ 3 รอบล่าสุด
         g2.setFont(new Font("Arial", Font.BOLD, 14));
         g2.setColor(new Color(180, 220, 255));
         g2.drawString("── Recent Records ──", boxX + 135, boxY + 155);

@@ -42,6 +42,10 @@ public class Player {
     int attackBuffTimer = 0;
     final int ATTACK_BUFF_DURATION = 480;
 
+    // ── Skill & Level ──────────────────────────────────────────────────────
+    public SkillSystem skills = new SkillSystem();
+    public LevelSystem  levelSys = new LevelSystem();
+
     public Player(int x, int y) {
         this.x = x;
         this.y = y;
@@ -127,9 +131,15 @@ public class Player {
         } else {
             swordAngle = facingRight ? -30 : 30;
         }
+
+        // อัพเดต Skill System
+        skills.update(this);
     }
 
     public void draw(Graphics2D g) {
+        // วาด afterimage ของ Dash
+        skills.drawAfterimages(g, width, height);
+
         boolean visible = !(invincibleTimer > 0 && (invincibleTimer / 5) % 2 == 0);
 
         if (visible) {
@@ -151,31 +161,46 @@ public class Player {
         AffineTransform old = g.getTransform();
         g.rotate(Math.toRadians(swordAngle), pivotX, pivotY);
 
-        Color bladeColor = attackBuffActive
-                ? new Color(255, 150, 50) : new Color(200, 200, 230);
-        Color tipColor = attackBuffActive
-                ? new Color(255, 80, 0) : new Color(220, 220, 255);
+        // Power Strike effect – ดาบเรืองแสงแดงเมื่อ active
+        boolean powerActive = skills.powerStriking;
+        Color bladeColor = powerActive ? new Color(255, 80, 0)
+                : (attackBuffActive ? new Color(255, 150, 50) : new Color(200, 200, 230));
+        Color tipColor = powerActive ? new Color(255, 200, 0)
+                : (attackBuffActive ? new Color(255, 80, 0) : new Color(220, 220, 255));
 
         g.setColor(new Color(120, 80, 40));
         g.fillRect(pivotX - 6, pivotY - 8, 12, 16);
 
+        // Power Strike ทำให้ดาบยาวขึ้น
+        int bladeLen = powerActive ? 60 : 40;
         g.setColor(bladeColor);
-        if (facingRight) g.fillRect(pivotX, pivotY - 4, 40, 8);
-        else             g.fillRect(pivotX - 40, pivotY - 4, 40, 8);
+        if (facingRight) g.fillRect(pivotX, pivotY - 4, bladeLen, 8);
+        else             g.fillRect(pivotX - bladeLen, pivotY - 4, bladeLen, 8);
 
         g.setColor(tipColor);
         int[] tipX, tipY;
         if (facingRight) {
-            tipX = new int[]{pivotX+40, pivotX+55, pivotX+40};
+            tipX = new int[]{pivotX+bladeLen, pivotX+bladeLen+15, pivotX+bladeLen};
             tipY = new int[]{pivotY-5, pivotY, pivotY+5};
         } else {
-            tipX = new int[]{pivotX-40, pivotX-55, pivotX-40};
+            tipX = new int[]{pivotX-bladeLen, pivotX-bladeLen-15, pivotX-bladeLen};
             tipY = new int[]{pivotY-5, pivotY, pivotY+5};
         }
         g.fillPolygon(tipX, tipY, 3);
+
+        // Power Strike glow
+        if (powerActive) {
+            g.setColor(new Color(255, 100, 0, 80));
+            if (facingRight) g.fillRect(pivotX, pivotY - 12, bladeLen + 20, 24);
+            else             g.fillRect(pivotX - bladeLen - 20, pivotY - 12, bladeLen + 20, 24);
+        }
+
         g.setTransform(old);
 
         drawStatusBars(g);
+
+        // วาด EXP bar
+        levelSys.drawExpBar(g, this);
 
         if (shield.active) {
             float alpha = 0.3f + 0.3f * (float)Math.sin(System.currentTimeMillis() * 0.01);
@@ -192,6 +217,8 @@ public class Player {
             g.drawOval(x - 8, y - 8, width + 16, height + 16);
             g.setStroke(new BasicStroke(1));
         }
+
+        // Whirlwind effect (วาดใน GamePanel แทนเพราะต้องใช้ animTick)
     }
 
     public void drawStatusBars(Graphics2D g) {

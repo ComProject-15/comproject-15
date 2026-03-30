@@ -48,10 +48,9 @@ public class Target {
             float angle = (float)(rand.nextFloat() * Math.PI * 2);
             float speed = 2f + rand.nextFloat() * 5f;
             vx = (float)Math.cos(angle) * speed;
-            vy = (float)Math.sin(angle) * speed - 2f; // พุ่งขึ้นนิดนึง
+            vy = (float)Math.sin(angle) * speed - 2f;
             this.size = 6 + rand.nextFloat() * 12f;
             alpha = 1f;
-            // สีน้ำเงิน/ฟ้าแบบ slime
             int r = 20  + rand.nextInt(60);
             int g = 160 + rand.nextInt(80);
             int b = 200 + rand.nextInt(55);
@@ -61,7 +60,7 @@ public class Target {
         void update() {
             x += vx;
             y += vy;
-            vy += 0.3f; // gravity
+            vy += 0.3f;
             vx *= 0.92f;
             alpha -= 1f / 30f;
             size  *= 0.95f;
@@ -75,17 +74,44 @@ public class Target {
 
     public void setSize(int size) { this.size = size; }
 
-    public int takeDamage() { health -= DAMAGE; return DAMAGE; }
+    // ── takeDamage ────────────────────────────────────────────────────────────
+    /** ดาเมจปกติ (ใช้ค่า DAMAGE ของ slime เอง) */
+    public int takeDamage() {
+        health -= DAMAGE;
+        return DAMAGE;
+    }
+
+    /** ดาเมจกำหนดเอง — ใช้โดย skill ต่างๆ */
+    public int takeDamage(int amount) {
+        health -= amount;
+        if (health < 0) health = 0;
+        return amount;
+    }
+
+    // ── takeDamageOnce ────────────────────────────────────────────────────────
+    /** ตี 1 ครั้งต่อ swing ด้วยดาเมจปกติ */
+    public int takeDamageOnce() {
+        if (hitThisSwing) return 0;
+        hitThisSwing = true;
+        return takeDamage();
+    }
+
+    /** ตี 1 ครั้งต่อ swing ด้วยดาเมจที่กำหนด — ใช้โดย Power Strike / Whirlwind */
+    public int takeDamageOnce(int amount) {
+        if (hitThisSwing) return 0;
+        hitThisSwing = true;
+        return takeDamage(amount);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     public boolean isDead() { return health <= 0; }
 
-    // เรียกเพื่อเริ่ม death animation (จาก GamePanel ก่อน remove)
     public void startDeathEffect() {
         if (isDying) return;
         SoundManager.playSound("death.wav");
         isDying = true;
         deathTimer = DEATH_DURATION;
-        // spawn particles
         int cx = x + size / 2;
         int cy = y + size / 2;
         for (int i = 0; i < 28; i++) {
@@ -101,12 +127,6 @@ public class Target {
     public int getMaxHealth() { return maxHealth; }
 
     public void resetHitThisSwing() { hitThisSwing = false; }
-
-    public int takeDamageOnce() {
-        if (hitThisSwing) return 0;
-        hitThisSwing = true;
-        return takeDamage();
-    }
 
     public void spawn(int width, int height, int difficulty) {
         x = width - size;
@@ -133,7 +153,7 @@ public class Target {
         if (attackCooldown > 0) attackCooldown--;
         if (attackTimer > 0)    { attackTimer--; if (attackTimer <= 0) isAttacking = false; }
 
-        int distX  = player.x - x;
+        int distX    = player.x - x;
         int absDistX = Math.abs(distX);
 
         if (absDistX <= ATTACK_RANGE) {
@@ -148,7 +168,7 @@ public class Target {
             else            { x -= dx; facingRight = false; }
         }
 
-        if (x <= 0)           x = 0;
+        if (x <= 0)            x = 0;
         if (x + size >= width) x = width - size;
     }
 
@@ -162,13 +182,11 @@ public class Target {
     }
 
     public void draw(Graphics2D g) {
-        // ถ้ากำลัง dying — วาดแค่ particles + ไม่วาด slime body
         if (isDying) {
             drawParticles(g);
             return;
         }
 
-        // วาด slime ปกติ
         if (slime == null) {
             g.setColor(isAttacking ? Color.RED : Color.CYAN);
             g.fillOval(x, y, size, size);
@@ -183,7 +201,6 @@ public class Target {
             g.drawImage(slime, drawX, drawY, w, h, null);
         }
 
-        // Attack effect
         if (isAttacking) {
             float alpha = attackTimer / (float)ATTACK_DURATION;
             g.setColor(new Color(255, 50, 50, (int)(180 * alpha)));
@@ -191,15 +208,11 @@ public class Target {
             g.fillRect(atkX, y + 10, ATTACK_RANGE, size - 20);
         }
 
-        // ===== Hit flash เมื่อโดนตี (health < max และยังไม่ตาย) =====
         if (health < maxHealth && health > 0) {
-            // วาด overlay ขาวจางๆ บน slime
-            float flashAlpha = 0.25f;
-            g.setColor(new Color(255, 255, 255, (int)(255 * flashAlpha)));
+            g.setColor(new Color(255, 255, 255, 64));
             g.fillOval(x, y, size, size);
         }
 
-        // Health bar
         int barW = size, barH = 8, barX = x, barY = y - 15;
         g.setColor(Color.RED);   g.fillRect(barX, barY, barW, barH);
         g.setColor(Color.GREEN); g.fillRect(barX, barY, (int)(barW * health / (double)maxHealth), barH);
