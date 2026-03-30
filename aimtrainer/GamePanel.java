@@ -3,7 +3,6 @@ package aimtrainer;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.imageio.ImageIO;
@@ -352,11 +351,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 player.skills.tryPowerStrike(player);
                 break;
 
+            case KeyEvent.VK_T:
+                // T — Whirlwind (unlock Lv 3)
+                player.skills.tryWhirlwind(player.levelSys.level);
+                break;
+
             case KeyEvent.VK_R:
-                // Whirlwind (Lv ≥ 3) — ถ้าไม่ unlock ลองเปิดหีบแทน
-                if (player.levelSys.level >= 3) {
-                    player.skills.tryWhirlwind(player.levelSys.level);
-                } else if (chest != null && chest.opened && !chest.collected
+                // R — เก็บของจากหีบ
+                if (chest != null && chest.opened && !chest.collected
                         && chest.isNearPlayer(player)) {
                     chest.collect();
                     SoundManager.playSound("click.wav");
@@ -370,6 +372,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 break;
 
             case KeyEvent.VK_E:
+                // E — เปิดหีบ
                 if (chest != null && !chest.opened && chest.isNearPlayer(player)) {
                     chest.open();
                     SoundManager.playSound("click.wav");
@@ -529,7 +532,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         // controls hint ซ้ายล่าง
         g2.setColor(new Color(200, 200, 200, 160));
         g2.setFont(new Font("Arial", Font.PLAIN, 11));
-        g2.drawString("SPACE=Attack  Q=Dash  F=PowerStrike  R=Whirl(Lv3)  E=Open chest", 10, getHeight() - 80);
+        g2.drawString("SPACE=Attack  Q=Dash  F=PowerStrike  T=Whirl(Lv3)  E=Open  R=Collect", 10, getHeight() - 80);
     }
 
     private void drawPortal(Graphics2D g2) {

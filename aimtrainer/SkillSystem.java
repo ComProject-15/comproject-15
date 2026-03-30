@@ -1,6 +1,8 @@
 package aimtrainer;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 
 /**
  * SkillSystem — จัดการ skill ทั้งหมดของ Player
@@ -10,6 +12,21 @@ import java.awt.*;
  * Skill 3 (R) — Whirlwind     : หมุนโจมตีรอบตัว (unlock ที่ Lv 3)
  */
 public class SkillSystem {
+
+    // ── Skill Icons ───────────────────────────────────────────────────────────
+    private Image iconDash;
+    private Image iconWhirl;
+    private Image iconPower;
+
+    public SkillSystem() {
+        try {
+            iconDash  = ImageIO.read(getClass().getResource("/aimtrainer/skill_dash.png"));
+            iconWhirl = ImageIO.read(getClass().getResource("/aimtrainer/skill_whirl.png"));
+            iconPower = ImageIO.read(getClass().getResource("/aimtrainer/skill_power.png"));
+        } catch (Exception e) {
+            iconDash = iconWhirl = iconPower = null;
+        }
+    }
 
     // ── Dash (Q) ──────────────────────────────────────────────────────────────
     public static final int DASH_COOLDOWN_MAX   = 90;
@@ -162,32 +179,44 @@ public class SkillSystem {
         g.fillRoundRect(startX - 10, barY - 10, 3 * (slotSize + gap) + 6, slotSize + 20, 14, 14);
 
         drawSlot(g, startX, barY, slotSize, "Q", "Dash",
-                dashCooldown, DASH_COOLDOWN_MAX, true, dashing, new Color(60, 160, 255));
+                dashCooldown, DASH_COOLDOWN_MAX, true, dashing, new Color(60, 160, 255), iconDash);
 
         drawSlot(g, startX + slotSize + gap, barY, slotSize, "F", "Strike",
-                powerCooldown, POWER_COOLDOWN_MAX, true, powerStriking, new Color(255, 100, 60));
+                powerCooldown, POWER_COOLDOWN_MAX, true, powerStriking, new Color(255, 100, 60), iconPower);
 
         boolean whirlUnlocked = playerLevel >= 3;
         drawSlot(g, startX + (slotSize + gap) * 2, barY, slotSize, "T", "Whirl",
                 whirlCooldown, WHIRL_COOLDOWN_MAX, whirlUnlocked, whirlwinding,
-                new Color(255, 220, 60));
+                new Color(255, 220, 60), iconWhirl);
     }
 
     private void drawSlot(Graphics2D g, int x, int y, int size,
                           String key, String name,
                           int cd, int cdMax, boolean unlocked, boolean active,
-                          Color accent) {
+                          Color accent, Image icon) {
 
-        g.setColor(active ? accent : new Color(50, 50, 70));
+        // พื้นหลัง slot
+        g.setColor(active ? accent.darker() : new Color(30, 30, 50));
         g.fillRoundRect(x, y, size, size, 10, 10);
 
+        // วาดรูป icon
+        if (icon != null) {
+            Composite oldComp = g.getComposite();
+            float iconAlpha = unlocked ? 1.0f : 0.35f;
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, iconAlpha));
+            g.drawImage(icon, x + 4, y + 4, size - 8, size - 8, null);
+            g.setComposite(oldComp);
+        }
+
         if (!unlocked) {
-            g.setColor(new Color(0, 0, 0, 150));
+            // overlay มืดทับ + เครื่องหมาย lock
+            g.setColor(new Color(0, 0, 0, 120));
             g.fillRoundRect(x, y, size, size, 10, 10);
-            g.setColor(new Color(180, 180, 180));
-            g.setFont(new Font("Arial", Font.BOLD, 18));
-            g.drawString("?", x + size / 2 - 5, y + size / 2 + 6);
+            g.setColor(new Color(220, 220, 220));
+            g.setFont(new Font("Arial", Font.BOLD, 20));
+            g.drawString("?", x + size / 2 - 6, y + size / 2 + 7);
         } else if (cd > 0) {
+            // cooldown overlay ทับบนรูป
             float ratio = cd / (float) cdMax;
             g.setColor(new Color(0, 0, 0, (int)(180 * ratio)));
             g.fillRoundRect(x, y, size, (int)(size * ratio), 10, 10);
